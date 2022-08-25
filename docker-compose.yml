@@ -1,0 +1,18 @@
+version: "3.3"
+services:
+  tools:
+    image: robertdcurrier/phytotracker5
+    container_name: pt5
+    user: "${UID}:${GID}"
+    command: tail -f /dev/null
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+              capabilities: [gpu]
+    volumes:
+      - .:/pt5
+      - /data/:/data/
+    working_dir: /pt5
