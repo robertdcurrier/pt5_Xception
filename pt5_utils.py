@@ -373,6 +373,7 @@ def classify_frame(args, taxa, frame, bboxes):
     rect_color = eval((config['taxa'][taxa]['poi']['rect_color']))
     fail_color = eval((config['taxa'][taxa]['poi']['fail_color']))
     all_color =  eval((config['taxa'][taxa]['poi']['all_color']))
+    no_focus_color =  eval((config['taxa'][taxa]['poi']['no_focus_color']))
     all_thick = config['taxa'][taxa]['poi']['all_thick']
     y_label_spacer = config['taxa'][taxa]['poi']['y_label_spacer']
     font_size = config['taxa'][taxa]['poi']['font_size']
@@ -407,9 +408,15 @@ def classify_frame(args, taxa, frame, bboxes):
             logging.debug('cvtColor failure for %d roi ' % len(roi))
             continue
 
+        # Check focus
+        focus = bool(check_focus(taxa, roi))
+        if not focus:
+            color = no_focus_color
+        else:
+            color = all_color
         # If we are in noclass mode just mark the ROIs
         if config['system']['noclass']:
-            cv2.rectangle(out_frame,(x1,y1),(x2,y2), all_color, all_thick)
+            cv2.rectangle(out_frame,(x1,y1),(x2,y2), color, all_thick)
             continue
         else:
             # Now we make the ROI a numpy array
@@ -572,7 +579,6 @@ def check_focus(taxa, roi):
             return True
         else:
             return False
-
 
 def clean_tmp():
     """
