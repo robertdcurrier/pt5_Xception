@@ -289,13 +289,14 @@ def process_video_sf(args):
         if len(contours) > max_cons:
             target_cons = contours
             target_frame = frame
+            frame_number = frames_read
             max_cons = len(contours)
     if max_cons == 0:
         target_frame = frame
     logging.info('process_video_sf(): Read %d frames...' % frames_read)
     logging.info('process_video_sf(): %d cons on frame %d' % (max_cons,
                                                               frames_read))
-    return(target_frame, target_cons)
+    return(target_frame, target_cons, frame_number)
 
 
 def process_video_all(args):
@@ -454,7 +455,7 @@ def classify_frame(args, taxa, frame, bboxes):
         return (out_frame, matches)
 
 
-def caption_frame(frame, taxa, cell_count):
+def caption_frame(frame, taxa, cell_count, frame_number):
     """Put  on frames. Need to add date of most recent
     video processing date/time and date/time of capture
     """
@@ -493,6 +494,11 @@ def caption_frame(frame, taxa, cell_count):
     the_text = "Cells: %s" % cell_count
     cv2.putText(frame, the_text, (x_pos, y_pos),
                 cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
+    # Frame number
+    y_pos = y_pos + 20
+    the_text = "Using Frame: %s" % frame_number
+    cv2.putText(frame, the_text, (x_pos, y_pos),
+            cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
 
     if config["system"]["noclass"]:
         # DEBUG WARNING

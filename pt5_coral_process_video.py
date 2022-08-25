@@ -140,13 +140,13 @@ def init_process():
     clean_tmp()
     args = get_cli_args()
     config = get_config()
-    (target_frame, target_cons) = process_video_sf(args)
+    (target_frame, target_cons, frame_number) = process_video_sf(args)
     (target_frame, circ_cons) = gen_coral(args, target_frame, target_cons)
     (taxa, bboxes) = gen_bboxes(args, circ_cons)
 
     (final_frame, matches) = classify_frame(args, taxa, target_frame, bboxes)
     logging.info("%s has %d matches" % (taxa, matches))
-    cap_frame = caption_frame(final_frame, taxa, matches)
+    cap_frame = caption_frame(final_frame, taxa, matches, frame_number)
     write_frame(taxa, cap_frame)
 
 
