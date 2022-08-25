@@ -144,14 +144,10 @@ def init_process():
     (target_frame, circ_cons) = gen_coral(args, target_frame, target_cons)
     (taxa, bboxes) = gen_bboxes(args, circ_cons)
 
-    if config['system']['debug']:
-        logging.info('init_process(%s): DEBUG ENABLED. CLASSIFIER OFF.' % taxa)
-        show_bboxes(taxa, target_frame, bboxes)
-    else:
-        (final_frame, matches) = classify_frame(args, taxa, target_frame, bboxes)
-        logging.info("%s has %d matches" % (taxa, matches))
-        cap_frame = caption_frame(final_frame, taxa, matches)
-        write_frame(taxa, cap_frame)
+    (final_frame, matches) = classify_frame(args, taxa, target_frame, bboxes)
+    logging.info("%s has %d matches" % (taxa, matches))
+    cap_frame = caption_frame(final_frame, taxa, matches)
+    write_frame(taxa, cap_frame)
 
 
 if __name__ == '__main__':

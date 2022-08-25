@@ -191,7 +191,7 @@ def gen_coral(args, target_frame, target_cons):
     threshold = cv2.threshold(blurred, thresh_min, thresh_max,
                               cv2.THRESH_BINARY)[1]
     edges = cv2.Canny(threshold, edges_min, edges_max)
-    
+
     if config['system']['debug']:
         fname = 'results/%s_circle_edges.png' % taxa
         logging.info('gen_coral(%s): Writing %s' % (taxa,fname))
@@ -367,11 +367,13 @@ def classify_frame(args, taxa, frame, bboxes):
     """
     logging.info('classify_frame(%s)' % taxa)
     config = get_config()
-    debug = config['system']['debug']
+    noclass= config['system']['noclass']
     confidence_index = config['keras']['confidence_index']
     line_thick = config['taxa'][taxa]['poi']['line_thick']
     rect_color = eval((config['taxa'][taxa]['poi']['rect_color']))
     fail_color = eval((config['taxa'][taxa]['poi']['fail_color']))
+    all_color =  eval((config['taxa'][taxa]['poi']['all_color']))
+    all_thick = config['taxa'][taxa]['poi']['all_thick']
     y_label_spacer = config['taxa'][taxa]['poi']['y_label_spacer']
     font_size = config['taxa'][taxa]['poi']['font_size']
     model = load_model()
@@ -405,38 +407,44 @@ def classify_frame(args, taxa, frame, bboxes):
             logging.debug('cvtColor failure for %d roi ' % len(roi))
             continue
 
-        # Now we make the ROI a numpy array
-        img_array = Image.fromarray(roi)
-        img_array = img_array.resize((img_x, img_y))
-        img_array = tf.expand_dims(img_array, 0)  # Create batch axis
-        predictions = model.predict(img_array, verbose=0)
-        scores = (predictions[0])
+        # If we are in noclass mode just mark the ROIs
+        if config['system']['noclass']:
+            cv2.rectangle(out_frame,(x1,y1),(x2,y2), all_color, all_thick)
+            continue
+        else:
+            # Now we make the ROI a numpy array
+            img_array = Image.fromarray(roi)
+            img_array = img_array.resize((img_x, img_y))
+            img_array = tf.expand_dims(img_array, 0)  # Create batch axis
+            predictions = model.predict(img_array, verbose=0)
+            scores = (predictions[0])
 
-        index = 0
-        logging.debug('classify_frame(%s): results' % taxa)
-        score = scores[index]*100
-        score_str = str("%0.2f%%" % score)
-        logging.debug(("%s: %0.2f%%" % (key_list[index], score)))
-        index = labels[taxa]
-        # Check taxa of interest score
-        taxa_score = scores[index]*100
-        if  taxa_score > confidence_index:
-            logging.debug("classify_frame(%s): Match" % taxa)
-            if not config['system']['debug']:
+            index = 0
+            logging.debug('classify_frame(%s): results' % taxa)
+            score = scores[index]*100
+            score_str = str("%0.2f%%" % score)
+            logging.debug(("%s: %0.2f%%" % (key_list[index], score)))
+            index = labels[taxa]
+            # Check taxa of interest score
+            taxa_score = scores[index]*100
+
+            if  taxa_score > confidence_index:
+                logging.debug("classify_frame(%s): Match" % taxa)
                 score_str = str("%0.2f%% %s" % (taxa_score, taxa))
                 cv2.rectangle(out_frame,(x1,y1),(x2,y2), rect_color, line_thick)
                 cv2.putText(out_frame, score_str, (x1, y1+y_label_spacer),0,
                             font_size,rect_color)
-            matches+=1
-        else:
-            logging.debug("classify_frame(%s): No Match" % taxa)
-            # We will change this to 'if debug' when we go to production
-            if not config['system']['debug']:
+                matches+=1
+            else:
+                logging.debug("classify_frame(%s): No Match" % taxa)
                 fail_str = str("%0.2f%% %s" % (taxa_score, taxa))
                 cv2.rectangle(out_frame,(x1,y1),(x2,y2), fail_color, line_thick)
                 cv2.putText(out_frame, fail_str, (x1, y1+y_label_spacer),0,
                             font_size,fail_color)
-    return (out_frame, matches)
+    if config['system']['noclass']:
+        return(out_frame, max_num_cons)
+    else:
+        return (out_frame, matches)
 
 
 def caption_frame(frame, taxa, cell_count):
@@ -478,6 +486,15 @@ def caption_frame(frame, taxa, cell_count):
     the_text = "Cells: %s" % cell_count
     cv2.putText(frame, the_text, (x_pos, y_pos),
                 cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
+
+    if config["system"]["noclass"]:
+        # DEBUG WARNING
+        y_pos = y_pos + 40
+        the_text = "DEBUG MODE"
+        cap_font_size = 3
+        cap_font_color = (0,0,255)
+        cv2.putText(frame, the_text, (x_pos, y_pos),
+                    cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
     return frame
 
 

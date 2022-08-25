@@ -16,7 +16,7 @@ NOTE:  process_images needs to be moved to pt5_utils.
 
 2022-07-15: All the above is done, but we no longer use mask_me. We have
 moved to CORAL: Clusters Of Regions And Lines. CORAL works much better. We
-have also restored caption_frame so that we watermark output images. 
+have also restored caption_frame so that we watermark output images.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -75,7 +75,8 @@ class hsVideoHandler(PatternMatchingEventHandler):
                     args = {"input" : event.src_path}
                     # 2022-07-11 updated by rdc to use new CORAL method
                     (target_frame, target_cons) = process_video_sf(args)
-                    (target_frame, circ_cons) = gen_coral(args, target_frame, target_cons)
+                    (target_frame, circ_cons) = gen_coral(args, target_frame,
+                                                          target_cons)
                     (taxa, bboxes) = gen_bboxes(args, circ_cons)
                     (final_frame, matches) = classify_frame(args, taxa,
                                                             target_frame,
