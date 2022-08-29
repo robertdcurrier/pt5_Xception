@@ -74,7 +74,8 @@ class hsVideoHandler(PatternMatchingEventHandler):
                     # We stuff an arg as that is what the routine needs
                     args = {"input" : event.src_path}
                     # 2022-07-11 updated by rdc to use new CORAL method
-                    (target_frame, target_cons) = process_video_sf(args)
+                    (target_frame, target_cons,
+                     frame_number) = process_video_sf(args)
                     (target_frame, circ_cons) = gen_coral(args, target_frame,
                                                           target_cons)
                     (taxa, bboxes) = gen_bboxes(args, circ_cons)
@@ -82,7 +83,8 @@ class hsVideoHandler(PatternMatchingEventHandler):
                                                             target_frame,
                                                             bboxes)
                     # 2022-07-15 added captioning for production version
-                    cap_frame = caption_frame(final_frame, taxa, matches)
+                    cap_frame = caption_frame(final_frame, taxa, matches,
+                                              frame_number)
 
                     logging.info('classify_frame() found %d cells' % matches)
                     if matches > 0:
