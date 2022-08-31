@@ -676,7 +676,8 @@ def build_db_doc(file_name, cells):
     Modified:   2022-03-22
     """
     logging.info('build_db_doc(%s, %d)' % (file_name, cells))
-    (serial_number, taxa, recorded_ts, lat, lon, _) = file_name.split('_')
+    (serial_number, taxa, recorded_ts, lat, lon, site, _) = file_name.split('_')
+    site = site.replace('-', ' ')
     # Convert lon/lat to floats from string
     lon = float(lon)
     lat = float(lat)
@@ -696,7 +697,6 @@ def build_db_doc(file_name, cells):
     # TO DO: Get taxa from file instead of DB
     taxa = {"taxa" : taxa}
     doc.update(taxa)
-    site = fetch_site(lat, lon)
     site = {"site" : site}
     doc.update(site)
     # Change names to reflect processing status
