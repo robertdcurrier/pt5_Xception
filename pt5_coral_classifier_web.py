@@ -49,7 +49,7 @@ from tensorflow.keras.preprocessing.image import img_to_array
 # Local utilities
 from pt5_utils import (string_to_tuple, get_config, load_scale,
 portal_write_frame, gen_coral, gen_bboxes, classify_frame, caption_frame,
-calc_cellcount,load_model, check_focus, clean_tmp, process_image_sf,
+calc_cellcount,load_model, check_focus, clean_results, process_image_sf,
 process_video_sf, build_db_doc, insert_record)
 
 
