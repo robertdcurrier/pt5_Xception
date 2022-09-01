@@ -77,7 +77,7 @@ from keras.preprocessing import image
 from pt5_utils import (string_to_tuple, get_config, load_scale,
 process_video_sf, write_frame, gen_coral,  classify_frame,
 gen_bboxes, caption_frame, calc_cellcount,load_model, check_focus,
-validate_taxa, clean_tmp)
+validate_taxa, clean_results)
 
 # Keep TF from yapping incessantly
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '5'
@@ -138,7 +138,7 @@ def init_process():
     tensorflow.keras.backend.set_image_data_format("channels_last")
     logging.basicConfig(level=logging.INFO)
     logging.info('Initializing pt5_Xception...')
-    clean_tmp()
+    clean_results()
     args = get_cli_args()
     config = get_config()
 
@@ -148,7 +148,6 @@ def init_process():
     logging.info("%s has %d matches" % (taxa, matches))
     cap_frame = caption_frame(final_frame, taxa, matches, frame_number)
     write_frame(taxa, cap_frame)
-
 
 if __name__ == '__main__':
     init_process()

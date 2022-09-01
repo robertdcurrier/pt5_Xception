@@ -159,56 +159,31 @@ def gen_coral(args, target_frame, target_cons):
     line_thick = config['taxa'][taxa]['poi']['line_thick']
     radius_boost = config['taxa'][taxa]['radius_boost']
     con_color = config['taxa'][taxa]['con_color']
-    # raw
-    if config['system']['debug']:
-        fname = 'results/%s_raw.png' % taxa
-        cv2.imwrite(fname, target_frame)
     # cons
     con_frame = target_frame.copy()
     cv2.drawContours(con_frame, target_cons, -1, (0,0,0), 1)
-    if config['system']['debug']:
-        fname = 'results/%s_cons.png' % taxa
-        logging.info('gen_coral(%s): Writing %s' % (taxa,fname))
-        cv2.imwrite(fname, con_frame)
-        # circles
+    # circles
     circle_frame = target_frame.copy()
     for con in target_cons:
         (x,y), radius = cv2.minEnclosingCircle(con)
         center = (int(x), int(y))
         radius = int(radius+radius_boost)
         cv2.circle(circle_frame, center, radius, (0,0,0), -1)
-    if config['system']['debug']:
-        fname = 'results/%s_circles.png' % taxa
-        logging.info('gen_coral(%s): Writing %s' % (taxa,fname))
-        cv2.imwrite(fname, circle_frame)
-    # edges of circles -- should we threshold instead?
+    # edges of circles
     edges_min = config['taxa'][taxa]['edges_min']
     edges_max = config['taxa'][taxa]['edges_max']
     thresh_min = config['taxa'][taxa]['thresh_min']
     thresh_max = config['taxa'][taxa]['thresh_max']
     gray  = cv2.cvtColor(circle_frame, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (3,3), cv2.BORDER_WRAP)
-    threshold = cv2.threshold(blurred, thresh_min, thresh_max,
+    threshold = cv2.threshold(gray, thresh_min, thresh_max,
                               cv2.THRESH_BINARY)[1]
     edges = cv2.Canny(threshold, edges_min, edges_max)
-
-    if config['system']['debug']:
-        fname = 'results/%s_circle_edges.png' % taxa
-        logging.info('gen_coral(%s): Writing %s' % (taxa,fname))
-        cv2.imwrite(fname, edges)
-        fname = 'results/%s_threshold.png' % taxa
-        logging.info('gen_coral(%s): Writing %s' % (taxa,fname))
-        cv2.imwrite(fname, threshold)
-
     circ_cons, _ = (cv2.findContours(edges, cv2.RETR_EXTERNAL,
                                     cv2.CHAIN_APPROX_NONE))
     coral_frame = target_frame.copy()
     cv2.drawContours(coral_frame, circ_cons, -1, (0,255,0), 3)
-    if config['system']['debug']:
-        fname = 'results/%s_coral.png' % taxa
-        logging.info('gen_coral(%s): Writing %s' % (taxa,fname))
-        cv2.imwrite(fname, coral_frame)
-    return(circ_cons)
+    return(circ_cons, edges, threshold, coral_frame, circle_frame)
 
 
 def gen_bboxes(args, circ_cons):
@@ -280,7 +255,8 @@ def process_video_sf(args):
     while frames_read < max_frames:
         _, frame = video_file.read()
         (contours) = gen_cons(taxa, frame, args)
-        (circ_cons) = gen_coral(args, frame, contours)
+        (circ_cons, edges, threshold,
+         coral_frame, circ_frame) = gen_coral(args, frame, contours)
         (taxa, bboxes) = gen_bboxes(args, circ_cons)
         # Keep count of max cons
         logging.debug(("process_video_sf() Frame: %d Cons: %d MaxCons: %d" %
@@ -289,7 +265,10 @@ def process_video_sf(args):
         if len(circ_cons) == 0:
             logging.warning('process_video_sf(%s): No contours.' % taxa)
         if len(circ_cons) > max_cons:
+            target_thresh = threshold
+            target_edges = edges
             target_cons = circ_cons
+            target_coral = coral_frame
             target_frame = frame
             frame_number = frames_read
             max_cons = len(circ_cons)
@@ -298,7 +277,13 @@ def process_video_sf(args):
     logging.debug('process_video_sf(): Read %d frames...' % frames_read)
     logging.info('process_video_sf(): %d cons on frame %d' % (max_cons,
                                                               frame_number))
+    if config['system']['debug']:
+        cv2.imwrite('results/raw.png', target_frame)
+        cv2.imwrite('results/edges.png', target_edges)
+        cv2.imwrite('results/threshold.png', target_thresh)
+        cv2.imwrite('results/coral.png', target_coral)
 
+    (taxa, bboxes) = gen_bboxes(args, circ_cons)
     return(target_frame, target_cons, frame_number)
 
 
@@ -589,13 +574,15 @@ def check_focus(taxa, roi):
         else:
             return False
 
-def clean_tmp():
+def clean_results():
     """
-    Empties all the folders in tmp before running
+    Empties all the folders in results before running
     """
-    logging.info('clean_tmp(): Emptying tmp')
-    os.system('rm -rf tmp')
-    os.mkdir('tmp')
+    logging.info('clean_results(): Emptying results')
+    os.chdir('results')
+    os.system('rm -rf *.png')
+    os.chdir('..')
+
 
 def portal_write_frame(full_file_name, frame):
     """
