@@ -76,7 +76,8 @@ from keras.preprocessing import image
 # Local utilities
 from pt5_utils import (string_to_tuple, get_config, load_scale,
 process_video_sf, write_frame, gen_coral,  classify_frame,
-gen_bboxes, caption_frame, calc_cellcount,load_model, check_focus, clean_tmp)
+gen_bboxes, caption_frame, calc_cellcount,load_model, check_focus,
+validate_taxa, clean_tmp)
 
 # Keep TF from yapping incessantly
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '5'
@@ -125,7 +126,7 @@ def show_bboxes(taxa, target_frame, bboxes):
             color = (0,0,0)
         else:
             color = (255,0,0)
-        logging.info('gen_bbox(%s): w:%d h:%d a:%d' % (taxa, w, h, area))
+        logging.info('show_bbox(%s): w:%d h:%d a:%d' % (taxa, w, h, area))
         cv2.rectangle(target_frame,(x1,y1),(x2,y2), color, 2)
     fname = 'results/%s_bboxes.png' % taxa
     logging.info('show_bboxes(%s): Writing %s' % (taxa, fname))
@@ -140,10 +141,9 @@ def init_process():
     clean_tmp()
     args = get_cli_args()
     config = get_config()
-    (target_frame, target_cons, frame_number) = process_video_sf(args)
-    (target_frame, circ_cons) = gen_coral(args, target_frame, target_cons)
-    (taxa, bboxes) = gen_bboxes(args, circ_cons)
 
+    (target_frame, target_cons, frame_number) = process_video_sf(args)
+    (taxa, bboxes) = gen_bboxes(args, target_cons)
     (final_frame, matches) = classify_frame(args, taxa, target_frame, bboxes)
     logging.info("%s has %d matches" % (taxa, matches))
     cap_frame = caption_frame(final_frame, taxa, matches, frame_number)

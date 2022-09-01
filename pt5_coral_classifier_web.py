@@ -73,15 +73,15 @@ class hsVideoHandler(PatternMatchingEventHandler):
                     logging.info("File upload complete")
                     # We stuff an arg as that is what the routine needs
                     args = {"input" : event.src_path}
-                    # 2022-07-11 updated by rdc to use new CORAL method
+                    # 2022-09-01 updated by rdc to correct error where we were
+                    # not selecting the frame w/max cons as we still used the
+                    # leaky method vs CORAL to pick the frame.
                     (target_frame, target_cons,
                      frame_number) = process_video_sf(args)
-                    (target_frame, circ_cons) = gen_coral(args, target_frame,
-                                                          target_cons)
-                    (taxa, bboxes) = gen_bboxes(args, circ_cons)
-                    (final_frame, matches) = classify_frame(args, taxa,
-                                                            target_frame,
-                                                            bboxes)
+                    (taxa, bboxes) = gen_bboxes(args, target_cons)
+                    (final_frame,
+                     matches) = classify_frame(args, taxa, target_frame, bboxes)
+                    #######################################################
                     # 2022-07-15 added captioning for production version
                     cap_frame = caption_frame(final_frame, taxa, matches,
                                               frame_number)

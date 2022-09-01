@@ -208,7 +208,7 @@ def gen_coral(args, target_frame, target_cons):
         fname = 'results/%s_coral.png' % taxa
         logging.info('gen_coral(%s): Writing %s' % (taxa,fname))
         cv2.imwrite(fname, coral_frame)
-    return(target_frame, circ_cons)
+    return(circ_cons)
 
 
 def gen_bboxes(args, circ_cons):
@@ -245,7 +245,7 @@ def gen_bboxes(args, circ_cons):
         x2 = x1+rect[2]
         y2 = y1+rect[3]
         bboxes.append([x1,y1,x2,y2])
-    logging.info('gen_bboxes(%s): Found %d ROIs' % (taxa, len(bboxes)))
+    logging.debug('gen_bboxes(%s): Found %d ROIs' % (taxa, len(bboxes)))
     return (taxa, bboxes)
 
 
@@ -280,22 +280,25 @@ def process_video_sf(args):
     while frames_read < max_frames:
         _, frame = video_file.read()
         (contours) = gen_cons(taxa, frame, args)
+        (circ_cons) = gen_coral(args, frame, contours)
+        (taxa, bboxes) = gen_bboxes(args, circ_cons)
         # Keep count of max cons
-        logging.debug(("Frame: %d Cons: %d MaxCons: %d" % (frames_read,
-                     len(contours), max_num_cons)))
+        logging.debug(("process_video_sf() Frame: %d Cons: %d MaxCons: %d" %
+                     (frames_read,len(circ_cons), max_cons)))
         frames_read += 1
-        if len(contours) == 0:
-            logging.info('process_video_sf(%s): No contours.' % taxa)
-        if len(contours) > max_cons:
-            target_cons = contours
+        if len(circ_cons) == 0:
+            logging.warning('process_video_sf(%s): No contours.' % taxa)
+        if len(circ_cons) > max_cons:
+            target_cons = circ_cons
             target_frame = frame
             frame_number = frames_read
-            max_cons = len(contours)
+            max_cons = len(circ_cons)
     if max_cons == 0:
         target_frame = frame
-    logging.info('process_video_sf(): Read %d frames...' % frames_read)
+    logging.debug('process_video_sf(): Read %d frames...' % frames_read)
     logging.info('process_video_sf(): %d cons on frame %d' % (max_cons,
-                                                              frames_read))
+                                                              frame_number))
+
     return(target_frame, target_cons, frame_number)
 
 
