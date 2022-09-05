@@ -28,7 +28,9 @@ from natsort import natsorted
 # Local utilities
 from pt5_utils import (string_to_tuple, get_config, load_scale,
 process_video_all, write_frame, gen_coral,  classify_frame, validate_taxa,
-gen_bboxes, caption_frame, calc_cellcount,load_model, check_focus, clean_tmp)
+gen_bboxes, caption_frame, calc_cellcount,load_model, check_focus,
+clean_results)
+
 thumbs = 0
 
 
@@ -92,18 +94,17 @@ if __name__ == '__main__':
     """
     logging.basicConfig(level=logging.INFO)
     logging.info('coral_snipper initializing...')
-    clean_tmp()
+    clean_results()
     frame_count = 0
     thumbs = 0
     args = get_cli_args()
     taxa = validate_taxa(args['input'])
     config = get_config()
     max_thumbs = config["taxa"][taxa]["max_thumbs"]
-    (frames, cons) = process_video_all(args)
+    (frames, bboxes) = process_video_all(args)
+    # Updated 2022-08-05
     for frame in frames:
-        (target_frame, circ_cons) = gen_coral(args, frame, cons[frame_count])
-        (taxa, bboxes) = gen_bboxes(args, circ_cons)
-        thumb_count = cell_snipper(frame, bboxes)
+        thumb_count = cell_snipper(frame, bboxes[frame_count])
         frame_count+=1
         thumbs = thumbs + thumb_count
         if thumbs > max_thumbs:

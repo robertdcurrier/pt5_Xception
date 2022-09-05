@@ -206,10 +206,11 @@ def gen_bboxes(args, circ_cons):
     for con in circ_cons:
         area = cv2.contourArea(con)
         logging.debug('gen_bboxes(%s): Con has area of %d' % (taxa, area))
-        if (area > config['taxa'][taxa]['min_con_area'] and area <
-            config['taxa'][taxa]['max_con_area']):
-            logging.debug('gen_bboxes(%s): Appending con of %d' % (taxa, area))
-            good_cons.append(con)
+        # Removed for testing 2022-09-04
+        #if (area > config['taxa'][taxa]['min_con_area'] and area <
+        #    config['taxa'][taxa]['max_con_area']):
+        #    logging.debug('gen_bboxes(%s): Appending con of %d' % (taxa, area))
+        good_cons.append(con)
     ncons = len(good_cons)
     logging.debug('gen_bboxes(%s): Using %d good_cons' % (taxa, ncons))
 
@@ -291,7 +292,7 @@ def process_video_all(args):
     """Process the sucker and return ALL frames/cons
     Author: robertdcurrier@gmail.com
     Created:    2022-04-14
-    Modified:   2022-04-19
+    Modified:   2022-09-05
     Notes:
 
     2022-04-14: Renamed as process_video_all, as we need all frames for
@@ -301,6 +302,8 @@ def process_video_all(args):
     2022-04-19: Added -w flag so we can write the mask for testing
 
     2022-07-12: No flags, just gimme the cons.
+
+    2022-09-05: Revised CORAL method
     """
 
     input_file = args["input"]
@@ -311,7 +314,7 @@ def process_video_all(args):
 
     # Where we store our frames
     frames = []
-    cons = []
+    rois = []
     video_file = cv2.VideoCapture(file_name)
     size = (int(video_file.get(cv2.CAP_PROP_FRAME_WIDTH)),
             int(video_file.get(cv2.CAP_PROP_FRAME_HEIGHT)))
@@ -321,12 +324,15 @@ def process_video_all(args):
 
     while frames_read < max_frames:
         _, frame = video_file.read()
-        contours = gen_cons(taxa, frame, args)
+        (contours) = gen_cons(taxa, frame, args)
+        (circ_cons, edges, threshold,
+         coral_frame, circ_frame) = gen_coral(args, frame, contours)
         frames_read += 1
         frames.append(frame)
-        cons.append(contours)
+        (taxa, bboxes) = gen_bboxes(args, circ_cons)
+        rois.append(bboxes)
     logging.info('process_video_all(): Read %d frames...' % frames_read)
-    return (frames, cons)
+    return (frames, rois)
 
 
 def write_frame(taxa, frame):
