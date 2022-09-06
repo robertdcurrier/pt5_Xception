@@ -159,9 +159,6 @@ def gen_coral(args, target_frame, target_cons):
     line_thick = config['taxa'][taxa]['poi']['line_thick']
     radius_boost = config['taxa'][taxa]['radius_boost']
     con_color = config['taxa'][taxa]['con_color']
-    # cons
-    con_frame = target_frame.copy()
-    cv2.drawContours(con_frame, target_cons, -1, (0,0,0), 1)
     # circles
     circle_frame = target_frame.copy()
     for con in target_cons:
@@ -182,7 +179,7 @@ def gen_coral(args, target_frame, target_cons):
     circ_cons, _ = (cv2.findContours(edges, cv2.RETR_TREE,
                                     cv2.CHAIN_APPROX_NONE))
     coral_frame = target_frame.copy()
-    cv2.drawContours(coral_frame, target_cons, -1, (0,255,0), 3)
+    cv2.drawContours(coral_frame, circ_cons, -1, (0,255,0), 3)
     return(circ_cons, edges, threshold, coral_frame, circle_frame)
 
 
@@ -209,7 +206,7 @@ def gen_bboxes(args, circ_cons):
         # Removed for testing 2022-09-04
         if (area > config['taxa'][taxa]['min_con_area'] and area <
             config['taxa'][taxa]['max_con_area']):
-            logging.info('gen_bboxes(%s): Appending con of %d' % (taxa, area))
+            logging.debug('gen_bboxes(%s): Appending con of %d' % (taxa, area))
             good_cons.append(con)
     ncons = len(good_cons)
     logging.debug('gen_bboxes(%s): Using %d good_cons' % (taxa, ncons))
