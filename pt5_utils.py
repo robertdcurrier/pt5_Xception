@@ -137,7 +137,7 @@ def gen_cons(taxa, frame, args):
     gray  = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (3,3), cv2.BORDER_WRAP)
     edges = cv2.Canny(blurred, edges_min, edges_max)
-    contours, _ = (cv2.findContours(edges, cv2.RETR_EXTERNAL,
+    contours, _ = (cv2.findContours(edges, cv2.RETR_TREE,
                             cv2.CHAIN_APPROX_NONE))
     return(contours)
 
@@ -176,13 +176,13 @@ def gen_coral(args, target_frame, target_cons):
     thresh_max = config['taxa'][taxa]['thresh_max']
     gray  = cv2.cvtColor(circle_frame, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (3,3), cv2.BORDER_WRAP)
-    threshold = cv2.threshold(gray, thresh_min, thresh_max,
+    threshold = cv2.threshold(blurred, thresh_min, thresh_max,
                               cv2.THRESH_BINARY)[1]
     edges = cv2.Canny(threshold, edges_min, edges_max)
-    circ_cons, _ = (cv2.findContours(edges, cv2.RETR_EXTERNAL,
+    circ_cons, _ = (cv2.findContours(edges, cv2.RETR_TREE,
                                     cv2.CHAIN_APPROX_NONE))
     coral_frame = target_frame.copy()
-    cv2.drawContours(coral_frame, circ_cons, -1, (0,255,0), 3)
+    cv2.drawContours(coral_frame, target_cons, -1, (0,255,0), 3)
     return(circ_cons, edges, threshold, coral_frame, circle_frame)
 
 
@@ -207,10 +207,10 @@ def gen_bboxes(args, circ_cons):
         area = cv2.contourArea(con)
         logging.debug('gen_bboxes(%s): Con has area of %d' % (taxa, area))
         # Removed for testing 2022-09-04
-        #if (area > config['taxa'][taxa]['min_con_area'] and area <
-        #    config['taxa'][taxa]['max_con_area']):
-        #    logging.debug('gen_bboxes(%s): Appending con of %d' % (taxa, area))
-        good_cons.append(con)
+        if (area > config['taxa'][taxa]['min_con_area'] and area <
+            config['taxa'][taxa]['max_con_area']):
+            logging.info('gen_bboxes(%s): Appending con of %d' % (taxa, area))
+            good_cons.append(con)
     ncons = len(good_cons)
     logging.debug('gen_bboxes(%s): Using %d good_cons' % (taxa, ncons))
 
