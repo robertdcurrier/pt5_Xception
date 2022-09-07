@@ -96,7 +96,7 @@ def load_scale(taxa):
     logging.info("Loaded %s scale successfully" % taxa)
     return scale
 
-def process_image_sf(input_file):
+def process_image(input_file):
     """
     Author: robertdcurrier@gmail.com
     Created:    2022-04-18
@@ -104,7 +104,7 @@ def process_image_sf(input_file):
     """
     taxa = validate_taxa(input_file)
     config = get_config()
-    logging.info('process_image_sf(%s)' % taxa)
+    logging.info('process_image(%s)' % taxa)
 
     # Open still image
     try:
@@ -114,7 +114,7 @@ def process_image_sf(input_file):
         return
 
     (contours, edges) = gen_cons(taxa, frame)
-    logging.debug("process_image_sf(): Cons: %d" % len(contours))
+    logging.debug("process_image(): Cons: %d" % len(contours))
     return(taxa, frame, contours)
 
 
@@ -143,7 +143,7 @@ def gen_cons(taxa, frame, args):
 
 
 
-def gen_coral(args, target_frame, target_cons):
+def gen_coral(target_frame, target_cons, args):
     """
     Name:       gen_coral
     Author:     robertdcurrier@gmail.com
@@ -177,18 +177,21 @@ def gen_coral(args, target_frame, target_cons):
                               cv2.THRESH_BINARY)[1]
     edges = cv2.Canny(threshold, edges_min, edges_max)
     circ_cons, _ = (cv2.findContours(edges, cv2.RETR_TREE,
-                                    cv2.CHAIN_APPROX_NONE))
+                                    cv2.CHAIN_APPROX_SIMPLE))
     coral_frame = target_frame.copy()
     cv2.drawContours(coral_frame, circ_cons, -1, (0,255,0), 3)
-    return(circ_cons, edges, threshold, coral_frame, circle_frame)
+    circ_cons, _ = (cv2.findContours(edges, cv2.RETR_TREE,
+                                    cv2.CHAIN_APPROX_SIMPLE))
+    logging.debug('gen_coral(): found %d circ_cons', len(circ_cons))
+    return(circ_cons)
 
 
-def gen_bboxes(args, circ_cons):
+def gen_bboxes(circ_cons, args):
     """
     Name:       gen_bboxes
     Author:     robertdcurrier@gmail.com
     Created:    2022-07-11
-    Modified:   2022-07-11
+    Modified:   2022-09-07
     Notes:      Iterates over video looking for frame with max cons. Feeds
     this frame into CORAL. If -d flag write out all intermediate images for
     debugging purposes.
@@ -218,28 +221,31 @@ def gen_bboxes(args, circ_cons):
         x2 = x1+rect[2]
         y2 = y1+rect[3]
         bboxes.append([x1,y1,x2,y2])
+    bboxes = list(bboxes for bboxes,_ in itertools.groupby(bboxes))
     logging.debug('gen_bboxes(%s): Found %d ROIs' % (taxa, len(bboxes)))
-    return (taxa, bboxes)
+    return (bboxes)
 
 
-def process_video_sf(args):
+def process_video(args):
     """
-    Name:       process_video_sf
+    Name:       process_video
     Author:     robertdcurrier@gmail.com
     Created:    2022-04-11
     Modified:   2022-07-11
-    Notes:      Iterates over video looking for frame with max cons. Feeds
-    this frame into CORAL. If -d flag write out all intermediate images for
-    debugging purposes.
+    Notes:      Totally rewrote as we finally decided we had no option but
+    to process every frame. There were too many cases of non-taxa objects
+    adding to the count and throwing off the frame selection. Example: 2 brevis
+    cells and 20 bits of junk would be chosen over 12 brevis cells and 5 bits
+    of junk as 2+20 > 12+5. To eliminate this we MUST process every frame.
     """
     input_file = args["input"]
     taxa = validate_taxa(input_file)
     config = get_config()
     file_name = input_file
-    logging.info('process_video_sf(%s)' % taxa)
+    logging.info('process_video(%s)' % taxa)
 
     # Where we store our frames
-    frames = []
+    class_frames = []
     target_cons = []
     max_num_cons = 0
     video_file = cv2.VideoCapture(file_name)
@@ -247,42 +253,54 @@ def process_video_sf(args):
             int(video_file.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     max_frames = (int(video_file.get(cv2.CAP_PROP_FRAME_COUNT)))
     # Loop over frames
-    frames_read = 0
-    max_cons = 0
+    frame_number = 0
+    max_match_frame = 0
+    max_matches = 0
+    model = load_model()
 
-    while frames_read < max_frames:
+    while frame_number < max_frames:
         _, frame = video_file.read()
         (contours) = gen_cons(taxa, frame, args)
-        (circ_cons, edges, threshold,
-         coral_frame, circ_frame) = gen_coral(args, frame, contours)
-        (taxa, bboxes) = gen_bboxes(args, circ_cons)
+        circ_cons = gen_coral(frame, contours, args)
+        bboxes = gen_bboxes(circ_cons, args)
         # Keep count of max cons
-        logging.debug(("process_video_sf() Frame: %d Cons: %d MaxCons: %d" %
-                     (frames_read,len(circ_cons), max_cons)))
-        frames_read += 1
-        if len(circ_cons) == 0:
-            logging.warning('process_video_sf(%s): No contours.' % taxa)
-        if len(circ_cons) > max_cons:
-            target_thresh = threshold
-            target_edges = edges
-            target_cons = circ_cons
-            target_coral = coral_frame
-            target_frame = frame
-            frame_number = frames_read
-            max_cons = len(circ_cons)
-    if max_cons == 0:
-        target_frame = frame
-    logging.debug('process_video_sf(): Read %d frames...' % frames_read)
-    logging.info('process_video_sf(): %d cons on frame %d' % (max_cons,
-                                                              frame_number))
-    if config['system']['debug']:
-        cv2.imwrite('results/raw.png', target_frame)
-        cv2.imwrite('results/edges.png', target_edges)
-        cv2.imwrite('results/threshold.png', target_thresh)
-        cv2.imwrite('results/coral.png', target_coral)
+        logging.debug("process_video() Frame: %d bboxes: %d" %
+                     (frame_number, len(bboxes)))
+        frame_number += 1
+        if len(bboxes) == 0:
+            logging.warning('process_video(%s): No contours.' % taxa)
+        (class_frame, matches) = classify_frame(args, taxa, frame, bboxes,
+                                                model)
 
-    (taxa, bboxes) = gen_bboxes(args, circ_cons)
-    return(target_frame, target_cons, frame_number)
+        if matches > max_matches:
+            max_matches = matches
+            max_match_frame = class_frame.copy()
+            max_match_frame_number = frame_number
+        logging.info('process_video(): frame %d has %d matches',
+                     frame_number, matches)
+        logging.info('process_video(): max_matches: %d on frame %d',
+                     max_matches, max_match_frame_number)
+        if config['system']['debug']:
+            bbox_frame = frame.copy()
+            for bbox in bboxes:
+                x1 = bbox[0]
+                y1 = bbox[1]
+                x2 = bbox[2]
+                y2 = bbox[3]
+                cv2.rectangle(bbox_frame,(x1,y1),(x2,y2), (0,0,255), 2)
+            raw_fname = "results/%d_raw.png" % frame_number
+            bbox_fname = "results/%d_bboxes.png" % frame_number
+            class_fname = "results/%d_%d_classified.png" % (frame_number,
+                                                            matches)
+            cv2.imwrite(raw_fname, frame)
+            cv2.imwrite(bbox_fname, bbox_frame)
+            cv2.imwrite(class_fname, class_frame)
+
+    class_fname = "results/%s_results.png" % taxa
+    cv2.imwrite(class_fname, max_match_frame)
+    sys.exit()
+
+    return(matches, class_frame, frame_number)
 
 
 def process_video_all(args):
@@ -345,7 +363,7 @@ def write_frame(taxa, frame):
     cv2.imwrite(outfile, frame)
 
 
-def classify_frame(args, taxa, frame, bboxes):
+def classify_frame(args, taxa, frame, bboxes, model):
     """Does what it says.
 
     Author: robertdcurrier@gmail.com
@@ -357,7 +375,7 @@ def classify_frame(args, taxa, frame, bboxes):
     2022-03-09: Fixed problem that resulted from PIL using RGBA vs BGRA
     2022-04-15: Now using Moments to determine ROI area
     """
-    logging.info('classify_frame(%s)' % taxa)
+    logging.debug('classify_frame(%s)' % taxa)
     config = get_config()
     noclass= config['system']['noclass']
     confidence_index = config['keras']['confidence_index']
@@ -366,10 +384,8 @@ def classify_frame(args, taxa, frame, bboxes):
     fail_color = eval((config['taxa'][taxa]['poi']['fail_color']))
     all_color =  eval((config['taxa'][taxa]['poi']['all_color']))
     no_focus_color =  eval((config['taxa'][taxa]['poi']['no_focus_color']))
-    all_thick = config['taxa'][taxa]['poi']['all_thick']
     y_label_spacer = config['taxa'][taxa]['poi']['y_label_spacer']
     font_size = config['taxa'][taxa]['poi']['font_size']
-    model = load_model()
     labels = config['keras']["labels"]
     key_list = list(labels.keys())
     val_list = list(labels.values())
@@ -381,8 +397,8 @@ def classify_frame(args, taxa, frame, bboxes):
     moments = []
     out_frame = frame.copy()
 
-    max_num_cons = len(bboxes)
-    logging.info("classify_frame(): Classifying %d ROIs" % max_num_cons)
+    max_num_bboxes = len(bboxes)
+    logging.debug("classify_frame(): Classifying %d ROIs" % max_num_bboxes)
     for bbox in bboxes:
         x1 = bbox[0]
         y1 = bbox[1]
@@ -391,59 +407,45 @@ def classify_frame(args, taxa, frame, bboxes):
         roi = frame[y1:y2,x1:x2]
         logging.debug('classify_frame(): ROI size is %d' % len(roi))
         if len(roi) == 0:
-            logging.warning('classify_frame(): Skipping 0 byte ROI')
+            logging.info('classify_frame(): Skipping 0 byte ROI')
             continue
         # PIL reads colors differently so we need to invert order
         try:
             roi = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
         except:
-            logging.debug('cvtColor failure for %d roi ' % len(roi))
+            logging.info('cvtColor failure for %d roi ' % len(roi))
             continue
 
-        # Check focus
-        focus = bool(check_focus(taxa, roi))
-        if not focus:
-            color = no_focus_color
-        else:
-            color = all_color
-        # If we are in noclass mode just mark the ROIs
-        if config['system']['noclass']:
-            cv2.rectangle(out_frame,(x1,y1),(x2,y2), color, all_thick)
-            continue
-        else:
-            # Now we make the ROI a numpy array
-            img_array = Image.fromarray(roi)
-            img_array = img_array.resize((img_x, img_y))
-            img_array = tf.expand_dims(img_array, 0)  # Create batch axis
-            predictions = model.predict(img_array, verbose=0)
-            scores = (predictions[0])
+        # Now we make the ROI a numpy array
+        img_array = Image.fromarray(roi)
+        img_array = img_array.resize((img_x, img_y))
+        img_array = tf.expand_dims(img_array, 0)  # Create batch axis
+        predictions = model.predict(img_array, verbose=0)
+        scores = (predictions[0])
 
-            index = 0
-            logging.debug('classify_frame(%s): results' % taxa)
-            score = scores[index]*100
-            score_str = str("%0.2f%%" % score)
-            logging.debug(("%s: %0.2f%%" % (key_list[index], score)))
-            index = labels[taxa]
-            # Check taxa of interest score
-            taxa_score = scores[index]*100
+        index = 0
+        logging.debug('classify_frame(%s): results' % taxa)
+        score = scores[index]*100
+        score_str = str("%0.2f%%" % score)
+        logging.debug(("%s: %0.2f%%" % (key_list[index], score)))
+        index = labels[taxa]
+        # Check taxa of interest score
+        taxa_score = scores[index]*100
 
-            if  taxa_score > confidence_index:
-                logging.debug("classify_frame(%s): Match" % taxa)
-                score_str = str("%0.2f%% %s" % (taxa_score, taxa))
-                cv2.rectangle(out_frame,(x1,y1),(x2,y2), rect_color, line_thick)
-                cv2.putText(out_frame, score_str, (x1, y1+y_label_spacer),0,
-                            font_size,rect_color)
-                matches+=1
-            else:
-                logging.debug("classify_frame(%s): No Match" % taxa)
-                fail_str = str("%0.2f%% %s" % (taxa_score, taxa))
-                cv2.rectangle(out_frame,(x1,y1),(x2,y2), fail_color, line_thick)
-                cv2.putText(out_frame, fail_str, (x1, y1+y_label_spacer),0,
-                            font_size,fail_color)
-    if config['system']['noclass']:
-        return(out_frame, max_num_cons)
-    else:
-        return (out_frame, matches)
+        if  taxa_score > confidence_index:
+            logging.debug("classify_frame(%s): Match %d" % (taxa, matches))
+            score_str = str("%0.2f%% %s" % (taxa_score, taxa))
+            cv2.rectangle(out_frame,(x1,y1),(x2,y2), rect_color, line_thick)
+            cv2.putText(out_frame, score_str, (x1, y1+y_label_spacer),0,
+                        font_size,rect_color)
+            matches+=1
+        else:
+            logging.debug("classify_frame(%s): No Match" % taxa)
+            fail_str = str("%0.2f%% %s" % (taxa_score, taxa))
+            cv2.rectangle(out_frame,(x1,y1),(x2,y2), fail_color, line_thick)
+            cv2.putText(out_frame, fail_str, (x1, y1+y_label_spacer),0,
+                        font_size,fail_color)
+    return (out_frame, matches)
 
 
 def caption_frame(frame, taxa, cell_count, frame_number):
@@ -505,7 +507,7 @@ def caption_frame(frame, taxa, cell_count, frame_number):
 def calc_cellcount(cells, taxa):
     """Calculate eCPL based on interpolated scale.
 
-    Author: robertdcurrier@gmail.com
+    load_modelAuthor: robertdcurrier@gmail.com
     Created:    2018-11-06
     Modified:   2022-04-28
     """
@@ -553,7 +555,7 @@ def load_model():
     model_file = config['keras']['platform'][platform]['model_file']
     try:
         model = keras.models.load_model(model_file)
-        logging.info('load_model(): Loaded %s' % model_file)
+        logging.debug('load_model(): Loaded %s' % model_file)
         return model
     except:
         logging.warning('load_model(): FAILED to load %s!' % model_file)

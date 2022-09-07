@@ -41,7 +41,7 @@ one code base for all important modules like process_image, process_video,
 classify_frame, etc. That way we can build all the utilities we need leveraging
 the core working code.
 
-2022-04-15: Rewrote process_video_sf to use new mask_me. Rewrote classify_frame
+2022-04-15: Rewrote process_video to use new mask_me. Rewrote classify_frame
 to do same. Really looking good now.  TO DO: Train model using new imagery
 from pt5_masked_snipper.
 
@@ -75,7 +75,7 @@ from PIL import Image, ImageOps
 from keras.preprocessing import image
 # Local utilities
 from pt5_utils import (string_to_tuple, get_config, load_scale,
-process_video_sf, write_frame, gen_coral,  classify_frame,
+process_video, write_frame, gen_coral,  classify_frame,
 gen_bboxes, caption_frame, calc_cellcount,load_model, check_focus,
 validate_taxa, clean_results)
 
@@ -140,13 +140,13 @@ def init_process():
     logging.info('Initializing pt5_Xception...')
     clean_results()
     args = get_cli_args()
+    input_file = args["input"]
+    taxa = validate_taxa(input_file)
     config = get_config()
 
-    (target_frame, target_cons, frame_number) = process_video_sf(args)
-    (taxa, bboxes) = gen_bboxes(args, target_cons)
-    (final_frame, matches) = classify_frame(args, taxa, target_frame, bboxes)
+    (matches, class_frame, frame_number) = process_video(args)
     logging.info("%s has %d matches" % (taxa, matches))
-    cap_frame = caption_frame(final_frame, taxa, matches, frame_number)
+    cap_frame = caption_frame(class_frame, taxa, matches, frame_number)
     write_frame(taxa, cap_frame)
 
 if __name__ == '__main__':
