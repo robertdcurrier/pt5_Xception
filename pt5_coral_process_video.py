@@ -144,10 +144,7 @@ def init_process():
     taxa = validate_taxa(input_file)
     config = get_config()
 
-    (matches, class_frame, frame_number) = process_video(args)
-    logging.info("%s has %d matches" % (taxa, matches))
-    cap_frame = caption_frame(class_frame, taxa, matches, frame_number)
-    write_frame(taxa, cap_frame)
-
+    process_video(args)
+    
 if __name__ == '__main__':
     init_process()

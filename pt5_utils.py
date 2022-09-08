@@ -244,11 +244,7 @@ def process_video(args):
     file_name = input_file
     logging.info('process_video(%s)' % taxa)
 
-
-
-
     # Where we store our frames
-    class_frames = []
     target_cons = []
     max_num_cons = 0
     video_file = cv2.VideoCapture(file_name)
@@ -277,18 +273,23 @@ def process_video(args):
         frame_number += 1
         if len(bboxes) == 0:
             logging.warning('process_video(%s): No contours.' % taxa)
+
         (class_frame, matches) = classify_frame(args, taxa, frame, bboxes,
                                                 model)
-        video_writer.write(class_frame)
+
 
         if matches > max_matches:
             max_matches = matches
             max_match_frame = class_frame.copy()
             max_match_frame_number = frame_number
-        logging.info('process_video(): frame %d has %d matches',
+        logging.debug('process_video(): frame %d has %d matches',
                      frame_number, matches)
-        logging.info('process_video(): max_matches: %d on frame %d',
-                     max_matches, max_match_frame_number)
+        logging.info('process_video(%d): max_matches: %d on frame %d',
+                     frame_number, max_matches, max_match_frame_number)
+
+        caption_frame(class_frame, taxa, matches, max_matches,
+                      max_match_frame_number, frame_number)
+        video_writer.write(class_frame)
         if config['system']['debug']:
             bbox_frame = frame.copy()
             for bbox in bboxes:
@@ -304,7 +305,6 @@ def process_video(args):
             cv2.imwrite(raw_fname, frame)
             cv2.imwrite(bbox_fname, bbox_frame)
             cv2.imwrite(class_fname, class_frame)
-    return(max_matches, max_match_frame, max_match_frame_number)
 
 
 def process_video_all(args):
@@ -424,7 +424,8 @@ def classify_frame(args, taxa, frame, bboxes, model):
         img_array = Image.fromarray(roi)
         img_array = img_array.resize((img_x, img_y))
         img_array = tf.expand_dims(img_array, 0)  # Create batch axis
-        predictions = model.predict(img_array, verbose=0)
+
+        predictions = model.predict_on_batch(img_array)
         scores = (predictions[0])
 
         index = 0
@@ -452,13 +453,14 @@ def classify_frame(args, taxa, frame, bboxes, model):
     return (out_frame, matches)
 
 
-def caption_frame(frame, taxa, cell_count, frame_number):
-    """Put  on frames. Need to add date of most recent
-    video processing date/time and date/time of capture
+def caption_frame(class_frame, taxa, matches, max_matches,
+                  max_match_frame_number, frame_number):
+    """
+    Do what it says
     """
     config = get_config()
 
-    logging.info('caption_frame(%s, %s)' % (taxa, cell_count))
+    logging.debug('caption_frame(%s, %s)' % (taxa, matches))
     the_date = time.strftime('%c')
     # Title
     title = config['captions']['title']
@@ -466,35 +468,41 @@ def caption_frame(frame, taxa, cell_count, frame_number):
     y_pos = config['captions']['caption_y']
     cap_font_size = config['captions']['cap_font_size']
     cap_font_color = (255,255,255)
-    cv2.putText(frame, title, (x_pos, y_pos),
+    cv2.putText(class_frame, title, (x_pos, y_pos),
                 cv2.FONT_HERSHEY_PLAIN, cap_font_size,
                 cap_font_color)
     y_pos = y_pos + 20
     # Version
     the_text = "Version: %s" % config['captions']['version']
-    cv2.putText(frame, the_text, (x_pos, y_pos),
+    cv2.putText(class_frame, the_text, (x_pos, y_pos),
                 cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
     y_pos = y_pos + 20
     # Date/Time
     the_text = "Processed: %s" % the_date
-    cv2.putText(frame, the_text, (x_pos, y_pos),
+    cv2.putText(class_frame, the_text, (x_pos, y_pos),
                 cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
 
     # Model
     y_pos = y_pos + 20
     the_text = "Taxa: %s" % taxa
-    cv2.putText(frame, the_text, (x_pos, y_pos),
+    cv2.putText(class_frame, the_text, (x_pos, y_pos),
                 cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
 
     # Cell count
     y_pos = y_pos + 20
-    the_text = "Cells: %s" % cell_count
-    cv2.putText(frame, the_text, (x_pos, y_pos),
+    the_text = "Matches: %s" % matches
+    cv2.putText(class_frame, the_text, (x_pos, y_pos),
+                cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
+    # Max Cell count
+    y_pos = y_pos + 20
+    the_text = "Max Matches: %s on frame %d" % (max_matches,
+                                                max_match_frame_number)
+    cv2.putText(class_frame, the_text, (x_pos, y_pos),
                 cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
     # Frame number
     y_pos = y_pos + 20
-    the_text = "Using Frame: %s" % frame_number
-    cv2.putText(frame, the_text, (x_pos, y_pos),
+    the_text = "Frame: %s" % frame_number
+    cv2.putText(class_frame, the_text, (x_pos, y_pos),
             cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
 
     if config["system"]["noclass"]:
@@ -503,9 +511,9 @@ def caption_frame(frame, taxa, cell_count, frame_number):
         the_text = "DEBUG MODE"
         cap_font_size = 3
         cap_font_color = (0,0,255)
-        cv2.putText(frame, the_text, (x_pos, y_pos),
+        cv2.putText(class_frame, the_text, (x_pos, y_pos),
                     cv2.FONT_HERSHEY_PLAIN, cap_font_size, cap_font_color)
-    return frame
+    return class_frame
 
 
 def calc_cellcount(cells, taxa):
