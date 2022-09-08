@@ -231,7 +231,7 @@ def process_video(args):
     Name:       process_video
     Author:     robertdcurrier@gmail.com
     Created:    2022-04-11
-    Modified:   2022-07-11
+    Modified:   2022-09-08
     Notes:      Totally rewrote as we finally decided we had no option but
     to process every frame. There were too many cases of non-taxa objects
     adding to the count and throwing off the frame selection. Example: 2 brevis
@@ -239,7 +239,8 @@ def process_video(args):
     of junk as 2+20 > 12+5. To eliminate this we MUST process every frame.
     """
     input_file = args["input"]
-    taxa = validate_taxa(input_file)
+    (serial_number, taxa, recorded_ts, lat, lon, site, _) = input_file.split('_')
+    site = site.replace('-', ' ')
     config = get_config()
     file_name = input_file
     logging.info('process_video(%s)' % taxa)
@@ -252,13 +253,15 @@ def process_video(args):
             int(video_file.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     max_frames = (int(video_file.get(cv2.CAP_PROP_FRAME_COUNT)))
     # Make a writer so we can create movie
-    vout_file = "results/%s_results.mp4" % taxa
-    video_writer = cv2.VideoWriter(vout_file,
+    pro_file = input_file.replace('raw', 'pro')
+    logging.info('process_video(): pro_file is %s', pro_file)
+    video_writer = cv2.VideoWriter(pro_file,
                                    cv2.VideoWriter_fourcc(*"mp4v"),
                                    10, size)
     # Loop over frames
+    matches = 0
     frame_number = 0
-    max_match_frame = 0
+    max_match_frame_number = 0
     max_matches = 0
     model = load_model()
 
@@ -276,8 +279,6 @@ def process_video(args):
 
         (class_frame, matches) = classify_frame(args, taxa, frame, bboxes,
                                                 model)
-
-
         if matches > max_matches:
             max_matches = matches
             max_match_frame = class_frame.copy()
@@ -286,7 +287,6 @@ def process_video(args):
                      frame_number, matches)
         logging.info('process_video(%d): max_matches: %d on frame %d',
                      frame_number, max_matches, max_match_frame_number)
-
         caption_frame(class_frame, taxa, matches, max_matches,
                       max_match_frame_number, frame_number)
         video_writer.write(class_frame)
@@ -305,6 +305,7 @@ def process_video(args):
             cv2.imwrite(raw_fname, frame)
             cv2.imwrite(bbox_fname, bbox_frame)
             cv2.imwrite(class_fname, class_frame)
+    return max_matches
 
 
 def process_video_all(args):
@@ -439,17 +440,13 @@ def classify_frame(args, taxa, frame, bboxes, model):
 
         if  taxa_score > confidence_index:
             logging.debug("classify_frame(%s): Match %d" % (taxa, matches))
-            #score_str = str("%0.2f%% %s" % (taxa_score, taxa))
             cv2.rectangle(out_frame,(x1,y1),(x2,y2), rect_color, line_thick)
             #cv2.putText(out_frame, score_str, (x1, y1+y_label_spacer),0,
             #            font_size,rect_color)
             matches+=1
         else:
             logging.debug("classify_frame(%s): No Match" % taxa)
-            #fail_str = str("%0.2f%% %s" % (taxa_score, taxa))
             cv2.rectangle(out_frame,(x1,y1),(x2,y2), fail_color, line_thick)
-            #cv2.putText(out_frame, fail_str, (x1, y1+y_label_spacer),0,
-            #            font_size,fail_color)
     return (out_frame, matches)
 
 
@@ -707,15 +704,13 @@ def build_db_doc(file_name, cells):
     site = {"site" : site}
     doc.update(site)
     # Change names to reflect processing status
-    videofile = '/data/habscope2/videos/%s/%s' % (serial_number, file_name)
+    raw_file = '/data/habscope2/videos/%s/%s' % (serial_number, file_name)
     file_name = file_name.replace('raw', 'pro')
-    # The classifier outputs a PNG so we need to change the extension
-    imgfile = "/data/habscope2/videos/%s/%s" % (serial_number,
-                                                file_name.replace('mp4', 'png'))
-    image_name = {"image_name" : imgfile}
-    doc.update(image_name)
-    video_name = {"video_name" : videofile}
-    doc.update(video_name)
+    pro_file = "/data/habscope2/videos/%s/%s" % (serial_number, file_name)
+    raw_video = {"raw_video" : raw_file}
+    doc.update(raw_video)
+    pro_video = {"pro_video" : pro_file}
+    doc.update(pro_video)
     # We add recorded time in this version as HS1 only used processing time
     recorded_ts = {"recorded_ts" : int(recorded_ts)}
     doc.update(recorded_ts)

@@ -4,7 +4,7 @@
 Name:       pt5_slice_classifier_web
 Author:     robertdcurrier@gmail.com
 Created:    2022-03-02
-Modified:   2022-07-05
+Modified:   2022-09-08
 Notes:     This is the web portal version with all the MongoDB and volunteer
 functions needed for site locations, db inserts, etc.
 
@@ -17,6 +17,9 @@ NOTE:  process_images needs to be moved to pt5_utils.
 2022-07-15: All the above is done, but we no longer use mask_me. We have
 moved to CORAL: Clusters Of Regions And Lines. CORAL works much better. We
 have also restored caption_frame so that we watermark output images.
+
+2022-09-08: Returned to processing all frames. Too many errors and missed
+cells when trying to only use frame w/max contours.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -49,8 +52,8 @@ from tensorflow.keras.preprocessing.image import img_to_array
 # Local utilities
 from pt5_utils import (string_to_tuple, get_config, load_scale,
 portal_write_frame, gen_coral, gen_bboxes, classify_frame, caption_frame,
-calc_cellcount,load_model, check_focus, clean_results, process_image_sf,
-process_video_sf, build_db_doc, insert_record)
+calc_cellcount,load_model, check_focus, clean_results,
+process_video, build_db_doc, insert_record)
 
 
 class hsVideoHandler(PatternMatchingEventHandler):
@@ -73,32 +76,11 @@ class hsVideoHandler(PatternMatchingEventHandler):
                     logging.info("File upload complete")
                     # We stuff an arg as that is what the routine needs
                     args = {"input" : event.src_path}
-                    # 2022-09-01 updated by rdc to correct error where we were
-                    # not selecting the frame w/max cons as we still used the
-                    # leaky method vs CORAL to pick the frame.
-                    (target_frame, target_cons,
-                     frame_number) = process_video_sf(args)
-                    (taxa, bboxes) = gen_bboxes(args, target_cons)
-                    (final_frame,
-                     matches) = classify_frame(args, taxa, target_frame, bboxes)
-                    #######################################################
-                    # 2022-07-15 added captioning for production version
-                    cap_frame = caption_frame(final_frame, taxa, matches,
-                                              frame_number)
-
-                    logging.info('classify_frame() found %d cells' % matches)
-                    if matches > 0:
-                        portal_write_frame(event.src_path, final_frame)
-                    else:
-                        logging.warning('No ROIs found.')
-                        portal_write_frame(event.src_path, final_frame)
-                        (_, file_name) = os.path.split(event.src_path)
-                        doc = build_db_doc(file_name, matches)
-                        insert_record(doc)
-                        return
-
+                    # 2022-09-08 Now using all frames
+                    max_matches =  process_video(args)
                     (_, file_name) = os.path.split(event.src_path)
-                    doc = build_db_doc(file_name, matches)
+                    logging.info("process_video(): Filename %s", file_name)
+                    doc = build_db_doc(file_name, max_matches)
                     insert_record(doc)
                     break
             else:
