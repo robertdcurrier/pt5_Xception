@@ -244,6 +244,9 @@ def process_video(args):
     file_name = input_file
     logging.info('process_video(%s)' % taxa)
 
+
+
+
     # Where we store our frames
     class_frames = []
     target_cons = []
@@ -252,6 +255,11 @@ def process_video(args):
     size = (int(video_file.get(cv2.CAP_PROP_FRAME_WIDTH)),
             int(video_file.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     max_frames = (int(video_file.get(cv2.CAP_PROP_FRAME_COUNT)))
+    # Make a writer so we can create movie
+    vout_file = "results/%s_results.mp4" % taxa
+    video_writer = cv2.VideoWriter(vout_file,
+                                   cv2.VideoWriter_fourcc(*"mp4v"),
+                                   10, size)
     # Loop over frames
     frame_number = 0
     max_match_frame = 0
@@ -271,6 +279,7 @@ def process_video(args):
             logging.warning('process_video(%s): No contours.' % taxa)
         (class_frame, matches) = classify_frame(args, taxa, frame, bboxes,
                                                 model)
+        video_writer.write(class_frame)
 
         if matches > max_matches:
             max_matches = matches
@@ -295,7 +304,7 @@ def process_video(args):
             cv2.imwrite(raw_fname, frame)
             cv2.imwrite(bbox_fname, bbox_frame)
             cv2.imwrite(class_fname, class_frame)
-    return(max_matches, max_match_frame, frame_number)
+    return(max_matches, max_match_frame, max_match_frame_number)
 
 
 def process_video_all(args):
@@ -429,17 +438,17 @@ def classify_frame(args, taxa, frame, bboxes, model):
 
         if  taxa_score > confidence_index:
             logging.debug("classify_frame(%s): Match %d" % (taxa, matches))
-            score_str = str("%0.2f%% %s" % (taxa_score, taxa))
+            #score_str = str("%0.2f%% %s" % (taxa_score, taxa))
             cv2.rectangle(out_frame,(x1,y1),(x2,y2), rect_color, line_thick)
-            cv2.putText(out_frame, score_str, (x1, y1+y_label_spacer),0,
-                        font_size,rect_color)
+            #cv2.putText(out_frame, score_str, (x1, y1+y_label_spacer),0,
+            #            font_size,rect_color)
             matches+=1
         else:
             logging.debug("classify_frame(%s): No Match" % taxa)
-            fail_str = str("%0.2f%% %s" % (taxa_score, taxa))
+            #fail_str = str("%0.2f%% %s" % (taxa_score, taxa))
             cv2.rectangle(out_frame,(x1,y1),(x2,y2), fail_color, line_thick)
-            cv2.putText(out_frame, fail_str, (x1, y1+y_label_spacer),0,
-                        font_size,fail_color)
+            #cv2.putText(out_frame, fail_str, (x1, y1+y_label_spacer),0,
+            #            font_size,fail_color)
     return (out_frame, matches)
 
 
