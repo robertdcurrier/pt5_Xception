@@ -295,12 +295,7 @@ def process_video(args):
             cv2.imwrite(raw_fname, frame)
             cv2.imwrite(bbox_fname, bbox_frame)
             cv2.imwrite(class_fname, class_frame)
-
-    class_fname = "results/%s_results.png" % taxa
-    cv2.imwrite(class_fname, max_match_frame)
-    sys.exit()
-
-    return(matches, class_frame, frame_number)
+    return(max_matches, max_match_frame, frame_number)
 
 
 def process_video_all(args):
@@ -454,7 +449,7 @@ def caption_frame(frame, taxa, cell_count, frame_number):
     """
     config = get_config()
 
-    logging.info('_frame(%s, %s)' % (taxa, cell_count))
+    logging.info('caption_frame(%s, %s)' % (taxa, cell_count))
     the_date = time.strftime('%c')
     # Title
     title = config['captions']['title']
