@@ -311,10 +311,6 @@ def process_video(args):
             cv2.imwrite(raw_fname, frame)
             cv2.imwrite(bbox_fname, bbox_frame)
             cv2.imwrite(class_fname, class_frame)
-    logging.info('process_video(): Converting mp4v to mp4')
-    command = ("ffmpeg %s -loglevel 8 -vcodec copy -acodec copy -movflags faststart %s" % (tmp_file, pro_file))
-    logging.debug('process_video(): Command is %s', command)
-    os.system(command)
     return max_matches
 
 
