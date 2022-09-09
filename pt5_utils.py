@@ -24,6 +24,7 @@ import argparse
 import statistics
 import itertools
 import glob
+import subprocess
 import cv2 as cv2
 import numpy as np
 import pymongo as pymongo
@@ -239,7 +240,8 @@ def process_video(args):
     of junk as 2+20 > 12+5. To eliminate this we MUST process every frame.
     """
     input_file = args["input"]
-    (serial_number, taxa, recorded_ts, lat, lon, site, _) = input_file.split('_')
+    (serial_number, taxa, recorded_ts, lat,
+     lon, site, _) = input_file.split('_')
     site = site.replace('-', ' ')
     config = get_config()
     file_name = input_file
@@ -253,9 +255,13 @@ def process_video(args):
             int(video_file.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     max_frames = (int(video_file.get(cv2.CAP_PROP_FRAME_COUNT)))
     # Make a writer so we can create movie
+    raw_file = input_file
+    tmp_file = input_file.replace('raw', 'tmp')
     pro_file = input_file.replace('raw', 'pro')
+    logging.info('process_video(): raw_file is %s', raw_file)
+    logging.info('process_video(): tmp_file is %s', tmp_file)
     logging.info('process_video(): pro_file is %s', pro_file)
-    video_writer = cv2.VideoWriter(pro_file,
+    video_writer = cv2.VideoWriter(tmp_file,
                                    cv2.VideoWriter_fourcc(*"mp4v"),
                                    10, size)
     # Loop over frames
@@ -305,6 +311,10 @@ def process_video(args):
             cv2.imwrite(raw_fname, frame)
             cv2.imwrite(bbox_fname, bbox_frame)
             cv2.imwrite(class_fname, class_frame)
+    logging.info('process_video(): Converting mp4v to mp4')
+    command = ("ffmpeg %s -loglevel 8 -vcodec copy -acodec copy -movflags faststart %s" % (tmp_file, pro_file))
+    logging.debug('process_video(): Command is %s', command)
+    os.system(command)
     return max_matches
 
 
