@@ -734,7 +734,7 @@ def build_db_doc(file_name, cells):
     cells_habscope = {"cells_habscope" : cells}
     doc.update(cells_habscope)
     # Only do cpL if taxa is Karenia
-    if taxa['taxa'] == 'karenia':
+    if taxa['taxa'] == 'kareniaBrevis':
         cpL = calc_cellcount(cells, taxa['taxa'])
         cpl_habscope = { "cpl_habscope" : cpL}
         cpl_manual = { "cpl_manual" : 0}
