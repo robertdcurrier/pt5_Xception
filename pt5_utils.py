@@ -274,13 +274,11 @@ def process_video(args):
     max_frames = (int(video_file.get(cv2.CAP_PROP_FRAME_COUNT)))
     # Make a writer so we can create movie
     raw_file = input_file
-    tmp_file = input_file.replace('raw', 'tmp')
     pro_file = input_file.replace('raw', 'pro')
     logging.info('process_video(): raw_file is %s', raw_file)
-    logging.info('process_video(): tmp_file is %s', tmp_file)
     logging.info('process_video(): pro_file is %s', pro_file)
-    video_writer = cv2.VideoWriter(tmp_file,
-                                   cv2.VideoWriter_fourcc('H','2','6','4'),
+    video_writer = cv2.VideoWriter(pro_file,
+                                   cv2.VideoWriter_fourcc(*"mp4v"),
                                    10, size)
     # Loop over frames
     matches = 0
