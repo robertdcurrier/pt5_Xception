@@ -7,6 +7,6 @@ docker-compose down
 
 # Up time
 echo "PRODUCTION ENVIRONMENT ENABLED!"
-#export UID=${UID}
-#export GID=${GID}
+export UID=${UID}
+export GID=${GID}
 docker-compose -f docker-compose.yml up -d
