@@ -81,6 +81,7 @@ def string_to_tuple(str):
         color = tuple(color)
     return color
 
+
 def get_config():
     """From config.json.
 
@@ -114,6 +115,7 @@ def load_scale(taxa):
     scale_file.close()
     logging.info("Loaded %s scale successfully" % taxa)
     return scale
+
 
 def process_image(input_file):
     """
@@ -274,10 +276,12 @@ def process_video(args):
     max_frames = (int(video_file.get(cv2.CAP_PROP_FRAME_COUNT)))
     # Make a writer so we can create movie
     raw_file = input_file
+    tmp_file = input_file.replace('raw', 'tmp')
     pro_file = input_file.replace('raw', 'pro')
     logging.info('process_video(): raw_file is %s', raw_file)
+    logging.info('process_video(): tmp_file is %s', tmp_file)
     logging.info('process_video(): pro_file is %s', pro_file)
-    video_writer = cv2.VideoWriter(pro_file,
+    video_writer = cv2.VideoWriter(tmp_file,
                                    cv2.VideoWriter_fourcc(*"mp4v"),
                                    10, size)
     # Loop over frames
@@ -312,22 +316,9 @@ def process_video(args):
         caption_frame(class_frame, taxa, matches, max_matches,
                       max_match_frame_number, frame_number)
         video_writer.write(class_frame)
-        if config['system']['debug']:
-            bbox_frame = frame.copy()
-            for bbox in bboxes:
-                x1 = bbox[0]
-                y1 = bbox[1]
-                x2 = bbox[2]
-                y2 = bbox[3]
-                cv2.rectangle(bbox_frame,(x1,y1),(x2,y2), (0,0,255), 2)
-            raw_fname = "results/%d_raw.png" % frame_number
-            bbox_fname = "results/%d_bboxes.png" % frame_number
-            class_fname = "results/%d_%d_classified.png" % (frame_number,
-                                                            matches)
-            cv2.imwrite(raw_fname, frame)
-            cv2.imwrite(bbox_fname, bbox_frame)
-            cv2.imwrite(class_fname, class_frame)
-    ffmpeg_it(raw_file, pro_file)
+    logging.info('process_video(): Releasing videoWriter')
+    video_writer.release()
+    ffmpeg_it(tmp_file, pro_file)
     return max_matches
 
 
