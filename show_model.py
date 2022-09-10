@@ -15,7 +15,6 @@ import cv2 as cv2
 import numpy as np
 import pymongo as pymongo
 from pymongo import MongoClient
-from natsort import natsorted
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers

@@ -25,11 +25,11 @@ import statistics
 import itertools
 import glob
 import subprocess
+import ffmpy
 import cv2 as cv2
 import numpy as np
 import pymongo as pymongo
 from pymongo import MongoClient
-from natsort import natsorted
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -38,12 +38,30 @@ from keras.preprocessing import image
 
 
 # Keep TF from yapping incessantly
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '5'
-
 import tensorflow
+tensorflow.get_logger().setLevel('ERROR')
 from tensorflow.keras.preprocessing.image import img_to_array
 # globals
 thumbs = 0
+
+def ffmpeg_it(infile, outfile):
+    """
+    """
+    file_size = os.path.getsize(infile)
+    logging.info('ffmpeg_it(): Infile %s Outfile %s',infile, outfile)
+    if file_size == 0:
+        logging.warning("ffmpeg_it(): Truncated input file %s of %d bytes" %
+                (infile, file_size))
+        return False
+    else:
+        logging.debug("ffmpeg_it(): %s is okay at %d bytes" % (infile, file_size))
+    ff = ffmpy.FFmpeg(
+            inputs={infile: None},
+            outputs={outfile: '-strict -2 -loglevel 3'},
+            global_options={'-y'}
+        )
+    ff.run()
+    return True
 
 
 def string_to_tuple(str):
@@ -262,7 +280,7 @@ def process_video(args):
     logging.info('process_video(): tmp_file is %s', tmp_file)
     logging.info('process_video(): pro_file is %s', pro_file)
     video_writer = cv2.VideoWriter(tmp_file,
-                                   cv2.VideoWriter_fourcc(*"mp4v"),
+                                   cv2.VideoWriter_fourcc('H','2','6','4'),
                                    10, size)
     # Loop over frames
     matches = 0
@@ -311,6 +329,7 @@ def process_video(args):
             cv2.imwrite(raw_fname, frame)
             cv2.imwrite(bbox_fname, bbox_frame)
             cv2.imwrite(class_fname, class_frame)
+    ffmpeg_it(raw_file, pro_file)
     return max_matches
 
 

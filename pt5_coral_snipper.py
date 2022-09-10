@@ -24,7 +24,6 @@ import glob
 import numpy as np
 import multiprocessing as mp
 import cv2 as cv2
-from natsort import natsorted
 # Local utilities
 from pt5_utils import (string_to_tuple, get_config, load_scale,
 process_video_all, write_frame, gen_coral,  classify_frame, validate_taxa,
