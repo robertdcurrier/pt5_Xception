@@ -319,6 +319,7 @@ def process_video(args):
     logging.info('process_video(): Releasing videoWriter')
     video_writer.release()
     ffmpeg_it(tmp_file, pro_file)
+    logging.info('process_video(): Finished')
     return max_matches
 
 
