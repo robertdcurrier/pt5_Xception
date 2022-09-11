@@ -7,8 +7,13 @@ services:
     command: tail -f /dev/null
     deploy:
       resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+              capabilities: [gpu]
         limits:
-          cpus: 8.0
+          cpus: 12.0
           memory: 16G
     volumes:
       - .:/pt5
