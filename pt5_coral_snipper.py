@@ -52,7 +52,7 @@ def get_cli_args():
     arg_p = argparse.ArgumentParser()
     arg_p.add_argument("-i", "--input", help="input file",
                        required='true')
-    arg_p.add_argument("-a, "--all", help="get all ROIs",
+    arg_p.add_argument("-a", "--all", help="get all ROIs",
                        action='store_true')
     args = vars(arg_p.parse_args())
     return args
