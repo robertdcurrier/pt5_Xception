@@ -48,7 +48,7 @@ def ffmpeg_it(infile, outfile):
     """
     """
     file_size = os.path.getsize(infile)
-    logging.info('ffmpeg_it(): Infile %s Outfile %s',infile, outfile)
+    logging.info("ffmpeg_it(): Converting mp4v to mp4")
     if file_size == 0:
         logging.warning("ffmpeg_it(): Truncated input file %s of %d bytes" %
                 (infile, file_size))
@@ -256,6 +256,7 @@ def process_video(args):
     cells and 20 bits of junk would be chosen over 12 brevis cells and 5 bits
     of junk as 2+20 > 12+5. To eliminate this we MUST process every frame.
     """
+    start_time = time.time()
     input_file = args["input"]
     (serial_number, taxa, recorded_ts, lat,
      lon, site, _) = input_file.split('_')
@@ -275,9 +276,9 @@ def process_video(args):
     raw_file = input_file
     tmp_file = input_file.replace('raw', 'tmp')
     pro_file = input_file.replace('raw', 'pro')
-    logging.info('process_video(): raw_file is %s', raw_file)
-    logging.info('process_video(): tmp_file is %s', tmp_file)
-    logging.info('process_video(): pro_file is %s', pro_file)
+    logging.debug('process_video(): raw_file is %s', raw_file)
+    logging.debug('process_video(): tmp_file is %s', tmp_file)
+    logging.debug('process_video(): pro_file is %s', pro_file)
     video_writer = cv2.VideoWriter(tmp_file,
                                    cv2.VideoWriter_fourcc(*"mp4v"),
                                    10, size)
@@ -306,8 +307,6 @@ def process_video(args):
             max_matches = matches
             max_match_frame = class_frame.copy()
             max_match_frame_number = frame_number
-        logging.debug('process_video(): frame %d has %d matches',
-                     frame_number, matches)
         logging.info('process_video(%d): max_matches: %d on frame %d',
                      frame_number, max_matches, max_match_frame_number)
         caption_frame(class_frame, taxa, matches, max_matches,
@@ -316,8 +315,10 @@ def process_video(args):
     logging.info('process_video(): Releasing videoWriter')
     video_writer.release()
     ffmpeg_it(tmp_file, pro_file)
-    logging.info('process_video(): Finished')
-    return max_matches
+    end_time = time.time()
+    minutes = ((end_time - start_time) / 60)
+    logging.info('Processing Time: %0.2f minutes' % minutes)
+    return (max_matches)
 
 
 def get_all_frames(args):
@@ -592,7 +593,7 @@ def clean_results():
     logging.info('clean_results(): Emptying results')
     os.chdir('results')
     os.system('rm -rf *.png')
-    os.system('rem -rf *.mp4')
+    os.system('rm -rf *.mp4')
     os.chdir('..')
 
 
