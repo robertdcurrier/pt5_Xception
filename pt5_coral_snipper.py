@@ -4,8 +4,14 @@
 Name:       pt5_coral_snipper
 Author:     robertdcurrier@gmail.com
 Created:    2022-04-14
-Modified:   2022-07-12
-Notes:      Now using CORAL to determine ROIs
+Modified:   2022-09-12
+Notes:      Now using CORAL to determine ROIs. We will make this operate
+like a self hosting compiler. We will include an -a flag to get all ROIS.
+This will allow us to take an unknown taxa and manual build an annotated
+library large enough for a first training. Once we get results > 50% we
+can then run without the -a flag, allowing the AI to only select cells that
+pop positive.  This will eliminate most of the junk and greatly speed up
+the building of a massive training set.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -26,9 +32,9 @@ import multiprocessing as mp
 import cv2 as cv2
 # Local utilities
 from pt5_utils import (string_to_tuple, get_config, load_scale,
-process_video_all, write_frame, gen_coral,  classify_frame, validate_taxa,
+get_all_frames, write_frame, gen_coral,  classify_frame, validate_taxa,
 gen_bboxes, caption_frame, calc_cellcount,load_model, check_focus,
-clean_results)
+clean_tmp, gen_cons)
 
 thumbs = 0
 
@@ -46,9 +52,7 @@ def get_cli_args():
     arg_p = argparse.ArgumentParser()
     arg_p.add_argument("-i", "--input", help="input file",
                        required='true')
-    arg_p.add_argument("-m", "--mask", help="write masked frames",
-                       action='store_true')
-    arg_p.add_argument("-f", "--frames", help="write raw frames",
+    arg_p.add_argument("-a, "--all", help="get all ROIs",
                        action='store_true')
     args = vars(arg_p.parse_args())
     return args
@@ -87,27 +91,51 @@ def cell_snipper(frame, bboxes):
     return thumb_count
 
 
-if __name__ == '__main__':
+def get_rois(frame):
     """
-    Main entry point
+    Name:       get_rois
+    Author:     robertdcurrier@gmail.com
+    Created:    2022-09-12
+    Modified:   2022-09-12
+    Notes:      Uses new CORAL to id areas of interest for snipping
     """
-    logging.basicConfig(level=logging.INFO)
-    logging.info('coral_snipper initializing...')
-    clean_results()
+    args = get_cli_args()
+    taxa = validate_taxa(args["input"])
+    (contours) = gen_cons(taxa, frame, args)
+    circ_cons = gen_coral(frame, contours, args)
+    bboxes = gen_bboxes(circ_cons, args)
+    # Keep count of max cons
+    logging.info("get_rois(): %d bboxes" % len(bboxes))
+    if len(bboxes) == 0:
+        logging.warning('process_video(%s): No contours.' % taxa)
+    return bboxes
+
+
+def the_snipper():
+    """
+    Name:       the_snipper
+    Author:     robertdcurrier@gmail.com
+    Created:    2022-09-12
+    Modified:   2022-09-12
+    Notes:      Main entry point.
+    """
+    clean_tmp()
     frame_count = 0
     thumbs = 0
     args = get_cli_args()
     taxa = validate_taxa(args['input'])
     config = get_config()
     max_thumbs = config["taxa"][taxa]["max_thumbs"]
-    (frames, bboxes) = process_video_all(args)
-    # Updated 2022-08-05
+    (frames) = get_all_frames(args)
     for frame in frames:
-        thumb_count = cell_snipper(frame, bboxes[frame_count])
-        frame_count+=1
-        thumbs = thumbs + thumb_count
-        if thumbs > max_thumbs:
-            logging.info('coral_snipper(%s): Thumbcount max of %d hit.' %
-                         (taxa, thumbs))
-            sys.exit()
-    logging.info('coral_snipper(%s): Wrote %d thumbs' % (taxa, thumbs))
+        bboxes = get_rois(frame)
+        cell_snipper(frame, bboxes )
+
+
+if __name__ == '__main__':
+    """
+    Main entry point
+    """
+    logging.basicConfig(level=logging.INFO)
+    logging.info('coral_snipper initializing...')
+    the_snipper()

@@ -224,24 +224,21 @@ def gen_bboxes(circ_cons, args):
     good_cons = []
     ncons = len(circ_cons)
     logging.debug('gen_bboxes(%s): %d circ_cons' % (taxa, ncons))
-    for con in circ_cons:
-        area = cv2.contourArea(con)
-        logging.debug('gen_bboxes(%s): Con has area of %d' % (taxa, area))
-        # Removed for testing 2022-09-04
-        if (area > config['taxa'][taxa]['min_con_area'] and area <
-            config['taxa'][taxa]['max_con_area']):
-            logging.debug('gen_bboxes(%s): Appending con of %d' % (taxa, area))
-            good_cons.append(con)
-    ncons = len(good_cons)
-    logging.debug('gen_bboxes(%s): Using %d good_cons' % (taxa, ncons))
 
-    for con in good_cons:
+    min_roi_area = config['taxa'][taxa]['min_roi_area']
+    max_roi_area = config['taxa'][taxa]['max_roi_area']
+    for con in circ_cons:
         rect = cv2.boundingRect(con)
         x1 = rect[0]
         y1 = rect[1]
         x2 = x1+rect[2]
         y2 = y1+rect[3]
-        bboxes.append([x1,y1,x2,y2])
+        width = x2-x1
+        height = y2-y1
+        area = width*height
+        logging.debug('gen_bboxes() Area: %d', area)
+        if area > min_roi_area and area < max_roi_area:
+            bboxes.append([x1,y1,x2,y2])
     bboxes = list(bboxes for bboxes,_ in itertools.groupby(bboxes))
     logging.debug('gen_bboxes(%s): Found %d ROIs' % (taxa, len(bboxes)))
     return (bboxes)
@@ -323,29 +320,19 @@ def process_video(args):
     return max_matches
 
 
-def process_video_all(args):
+def get_all_frames(args):
     """Process the sucker and return ALL frames/cons
     Author: robertdcurrier@gmail.com
     Created:    2022-04-14
-    Modified:   2022-09-05
-    Notes:
-
-    2022-04-14: Renamed as process_video_all, as we need all frames for
-    snipper, but process_video only returns frame with max_cons.  Easier to
-    add another function than try to add flags and modify this working code.
-
-    2022-04-19: Added -w flag so we can write the mask for testing
-
-    2022-07-12: No flags, just gimme the cons.
-
-    2022-09-05: Revised CORAL method
+    Modified:   2022-09-12
+    Notes:      2022-09-05: Revised CORAL method
     """
 
     input_file = args["input"]
     taxa = validate_taxa(input_file)
     config = get_config()
     file_name = input_file
-    logging.info('process_video_all(%s)' % taxa)
+    logging.info('get_all_frames(%s)' % taxa)
 
     # Where we store our frames
     frames = []
@@ -359,15 +346,10 @@ def process_video_all(args):
 
     while frames_read < max_frames:
         _, frame = video_file.read()
-        (contours) = gen_cons(taxa, frame, args)
-        (circ_cons, edges, threshold,
-         coral_frame, circ_frame) = gen_coral(args, frame, contours)
         frames_read += 1
         frames.append(frame)
-        (taxa, bboxes) = gen_bboxes(args, circ_cons)
-        rois.append(bboxes)
-    logging.info('process_video_all(): Read %d frames...' % frames_read)
-    return (frames, rois)
+    logging.info('get_all_frames(): Read %d frames...' % frames_read)
+    return (frames)
 
 
 def write_frame(taxa, frame):
@@ -604,6 +586,17 @@ def check_focus(taxa, roi):
             return False
 
 def clean_results():
+    """
+    Empties all the folders in results before running
+    """
+    logging.info('clean_results(): Emptying results')
+    os.chdir('results')
+    os.system('rm -rf *.png')
+    os.system('rem -rf *.mp4')
+    os.chdir('..')
+
+
+def clean_tmp():
     """
     Empties all the folders in results before running
     """
