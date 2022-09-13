@@ -301,8 +301,8 @@ def process_video(args):
         if len(bboxes) == 0:
             logging.warning('process_video(%s): No contours.' % taxa)
 
-        (class_frame, matches) = classify_frame(args, taxa, frame, bboxes,
-                                                model)
+        (class_frame, matches, match_bboxes) = classify_frame(args, taxa, frame,
+                                                              bboxes, model)
         if matches > max_matches:
             max_matches = matches
             max_match_frame = class_frame.copy()
@@ -397,7 +397,7 @@ def classify_frame(args, taxa, frame, bboxes, model):
     logging.debug('classify_frame(): Labels: %s' % labels)
     matches = 0
     con_index = 0
-    moments = []
+    match_bboxes = []
     out_frame = frame.copy()
 
     max_num_bboxes = len(bboxes)
@@ -439,13 +439,14 @@ def classify_frame(args, taxa, frame, bboxes, model):
         if  taxa_score > confidence_index:
             logging.debug("classify_frame(%s): Match %d" % (taxa, matches))
             cv2.rectangle(out_frame,(x1,y1),(x2,y2), rect_color, line_thick)
+            match_bboxes.append(bbox)
             #cv2.putText(out_frame, score_str, (x1, y1+y_label_spacer),0,
             #            font_size,rect_color)
             matches+=1
         else:
             logging.debug("classify_frame(%s): No Match" % taxa)
             cv2.rectangle(out_frame,(x1,y1),(x2,y2), fail_color, line_thick)
-    return (out_frame, matches)
+    return (out_frame, matches, match_bboxes)
 
 
 def caption_frame(class_frame, taxa, matches, max_matches,

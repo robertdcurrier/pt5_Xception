@@ -4,7 +4,7 @@
 Name:       pt5_coral_snipper
 Author:     robertdcurrier@gmail.com
 Created:    2022-04-14
-Modified:   2022-09-12
+Modified:   2022-09-13
 Notes:      Now using CORAL to determine ROIs. We will make this operate
 like a self hosting compiler. We will include an -a flag to get all ROIS.
 This will allow us to take an unknown taxa and manual build an annotated
@@ -33,7 +33,7 @@ import cv2 as cv2
 # Local utilities
 from pt5_utils import (string_to_tuple, get_config, load_scale,
 get_all_frames, write_frame, gen_coral,  classify_frame, validate_taxa,
-gen_bboxes, caption_frame, calc_cellcount,load_model, check_focus,
+gen_bboxes, caption_frame, calc_cellcount, load_model, check_focus,
 clean_tmp, gen_cons)
 
 thumbs = 0
@@ -52,7 +52,7 @@ def get_cli_args():
     arg_p = argparse.ArgumentParser()
     arg_p.add_argument("-i", "--input", help="input file",
                        required='true')
-    arg_p.add_argument("-a", "--all", help="get all ROIs",
+    arg_p.add_argument("-c", "--classifier", help="Use classifier",
                        action='store_true')
     args = vars(arg_p.parse_args())
     return args
@@ -116,7 +116,7 @@ def the_snipper():
     Name:       the_snipper
     Author:     robertdcurrier@gmail.com
     Created:    2022-09-12
-    Modified:   2022-09-12
+    Modified:   2022-09-13
     Notes:      Main entry point.
     """
     clean_tmp()
@@ -125,11 +125,21 @@ def the_snipper():
     args = get_cli_args()
     taxa = validate_taxa(args['input'])
     config = get_config()
+    model = load_model()
     max_thumbs = config["taxa"][taxa]["max_thumbs"]
     (frames) = get_all_frames(args)
+    frame_num = 0
     for frame in frames:
+        frame_num+=1
         bboxes = get_rois(frame)
-        cell_snipper(frame, bboxes )
+        if args['classifier']:
+            (class_frame, matches,
+             match_bboxes) = classify_frame(args, taxa, frame, bboxes, model)
+            logging.info('the_snipper(): %d matches frame %d', matches,
+                         frame_num)
+            cell_snipper(frame, match_bboxes)
+        else:
+            cell_snipper(frame, bboxes)
 
 
 if __name__ == '__main__':
