@@ -602,8 +602,8 @@ def clean_tmp():
     """
     Empties all the folders in results before running
     """
-    logging.info('clean_results(): Emptying results')
-    os.chdir('results')
+    logging.info('clean_tmp(): Emptying results')
+    os.chdir('tmp')
     os.system('rm -rf *.png')
     os.chdir('..')
 

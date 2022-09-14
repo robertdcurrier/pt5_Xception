@@ -82,12 +82,15 @@ def cell_snipper(frame, bboxes):
         y1 = bbox[1]
         x2 = bbox[2]
         y2 = bbox[3]
-        roi = frame[y1:y2,x1:x2]
-        epoch_time = int(time.time_ns())
-        fname = 'tmp/%d_%s.png' %(epoch_time, taxa)
-        logging.info('cell_snipper(%s): Writing %s' % (taxa, fname))
-        cv2.imwrite(fname, roi)
-        thumb_count+=1
+        width = x2-x1
+        height = y2-y1
+        if width > 10 and height > 10:
+            roi = frame[y1:y2,x1:x2]
+            epoch_time = int(time.time_ns())
+            fname = 'tmp/%d_%s.png' %(epoch_time, taxa)
+            logging.info('cell_snipper(%s): Writing %s' % (taxa, fname))
+            cv2.imwrite(fname, roi)
+            thumb_count+=1
     return thumb_count
 
 
@@ -116,7 +119,7 @@ def the_snipper():
     Name:       the_snipper
     Author:     robertdcurrier@gmail.com
     Created:    2022-09-12
-    Modified:   2022-09-13
+    Modified:   2022-09-14
     Notes:      Main entry point.
     """
     clean_tmp()
@@ -132,14 +135,13 @@ def the_snipper():
     for frame in frames:
         frame_num+=1
         bboxes = get_rois(frame)
-        if args['classifier']:
-            (class_frame, matches,
-             match_bboxes) = classify_frame(args, taxa, frame, bboxes, model)
-            logging.info('the_snipper(): %d matches frame %d', matches,
-                         frame_num)
-            cell_snipper(frame, match_bboxes)
-        else:
+        thumbs+=len(bboxes)
+        if thumbs < max_thumbs:
             cell_snipper(frame, bboxes)
+        else:
+            logging.warning('the_snipper(): Max thumb count exceeded')
+            sys.exit()
+
 
 
 if __name__ == '__main__':
