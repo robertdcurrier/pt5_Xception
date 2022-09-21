@@ -239,19 +239,6 @@ def get_cli_args():
     return args
 
 
-def train_and_test():
-    """
-    Main loop
-    """
-    logging.info('train_and_test()...')
-    args = get_cli_args()
-    if args["testonly"]:
-        model = load_model()
-        testModel(model)
-    else:
-        model = trainModel()
-        testModel(model)
-
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     logging.info('pt5_Xception training and testing')
