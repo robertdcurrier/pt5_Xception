@@ -300,7 +300,6 @@ def process_video(args):
         frame_number += 1
         if len(bboxes) == 0:
             logging.warning('process_video(%s): No contours.' % taxa)
-
         (class_frame, matches, match_bboxes) = classify_frame(args, taxa, frame,
                                                               bboxes, model)
         if matches > max_matches:
@@ -532,6 +531,7 @@ def calc_cellcount(cells, taxa):
         logging.info(msg)
     cpL = scale[cells]
     return cpL
+
 
 def validate_taxa(input_file):
     """
