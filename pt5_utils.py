@@ -61,6 +61,8 @@ def ffmpeg_it(infile, outfile):
             global_options={'-y'}
         )
     ff.run()
+    logging.info('ffmpeg_it(): Removing %s', infile)
+    os.remove(infile)
     return True
 
 
